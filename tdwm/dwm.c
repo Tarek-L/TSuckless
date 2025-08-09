@@ -334,7 +334,6 @@ void applyrules(Client *c) {
   Monitor *m;
   XClassHint ch = {NULL, NULL};
 
-  /* rule matching */
   c->isfloating = 0;
   c->tags = 0;
   XGetClassHint(dpy, c->win, &ch);
@@ -570,6 +569,7 @@ void buttonpress(XEvent *e) {
         }
       }
     } else
+
       click = ClkWinTitle;
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
@@ -632,6 +632,7 @@ void cleanupmon(Monitor *mon) {
   }
   XUnmapWindow(dpy, mon->barwin);
   XDestroyWindow(dpy, mon->barwin);
+
   free(mon);
 }
 
@@ -770,6 +771,7 @@ Monitor *createmon(void) {
   m->lt[0] = &layouts[0];
   m->lt[1] = &layouts[1 % LENGTH(layouts)];
   strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
+
   return m;
 }
 
@@ -851,6 +853,7 @@ void drawbar(Monitor *m) {
   }
 
   for (c = m->clients; c; c = c->next) {
+
     occ |= c->tags == 255 ? 0 : c->tags;
     if (c->isurgent)
       urg |= c->tags;
@@ -860,13 +863,14 @@ void drawbar(Monitor *m) {
     /* do not draw vacant tags */
     if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
       continue;
-
     w = TEXTW(tags[i]);
     drw_setscheme(
         drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
     drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
-    x += w;
+    if (occ & 1 << i)
+      x += w;
   }
+
   w = TEXTW(m->ltsymbol);
   drw_setscheme(drw, scheme[SchemeNorm]);
   x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
@@ -1002,7 +1006,6 @@ Atom getatomprop(Client *c, Atom prop) {
   }
   return atom;
 }
-
 pid_t getstatusbarpid() {
   char buf[32], *str = buf, *c;
   FILE *fp;
@@ -1297,7 +1300,8 @@ void movemouse(const Arg *arg) {
     case MapRequest:
       handler[ev.type](&ev);
 
-      // A MapRequest could've caused the current window to swallow another one.
+      // A MapRequest could've caused the current window to swallow another
+      // one.
       if (c->swallowed)
         c = c->swallowed;
       break;
@@ -1769,7 +1773,6 @@ void showhide(Client *c) {
     XMoveWindow(dpy, c->win, WIDTH(c) * -2, c->y);
   }
 }
-
 void sigstatusbar(const Arg *arg) {
   union sigval sv;
 
@@ -2147,6 +2150,7 @@ void updatestatus(void) {
     }
     statusw += TEXTW(text) - lrpad + 2;
   }
+
   drawbar(selmon);
 }
 
