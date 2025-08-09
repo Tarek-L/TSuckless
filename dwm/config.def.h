@@ -35,15 +35,6 @@ static const char *colors[][3] = {
 /* tagging */
 static const char *tags[] = {"I",  "II",  "III",  "IV", "V",
                              "VI", "VII", "VIII", "IX"};
-/* appicons */
-/* NOTE: set to 0 to set to default (whitespace) */
-static char outer_separator_beg = '[';
-static char outer_separator_end = ']';
-static char inner_separator = ' ';
-static unsigned truncate_icons_after =
-    2; /* will default to 1, that is the min */
-static char truncate_symbol[] = "...";
-
 static const Rule rules[] = {
     /* xprop(1):
      *	WM_CLASS(STRING) = instance, class
@@ -51,7 +42,7 @@ static const Rule rules[] = {
      */
     /* class      instance    title       tags mask     isfloating   monitor
        appicon*/
-    {"librewolf", NULL, NULL, 1 << 1, 0, -1, NULL},
+    {"librewolf", NULL, NULL, 1 << 1, 0, -1},
 };
 
 /* layout(s) */
