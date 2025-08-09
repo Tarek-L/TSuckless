@@ -1,5 +1,49 @@
---- dwm.c
-+++ dwm.c
+From c0fcc16b38f41a0ae7638c5ed5718f5aa9747913 Mon Sep 17 00:00:00 2001
+From: Rumen <rumenmitov@protonmail.com>
+Date: Sun, 1 Jun 2025 12:23:04 +0200
+Subject: [PATCH] fix: segfault when rendering icons
+
+fixed a segfault due to a double free when copying appicons between
+strings
+---
+ config.def.h |  14 ++++--
+ dwm.c        | 140 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 147 insertions(+), 7 deletions(-)
+
+diff --git a/config.def.h b/config.def.h
+index 9efa774..3045af6 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -21,14 +21,22 @@ static const char *colors[][3]      = {
+ /* tagging */
+ static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+ 
++/* appicons */
++/* NOTE: set to 0 to set to default (whitespace) */
++static char outer_separator_beg      = '[';
++static char outer_separator_end      = ']';
++static char inner_separator          = ' ';
++static unsigned truncate_icons_after = 2; /* will default to 1, that is the min */
++static char truncate_symbol[]         = "...";
++
+ static const Rule rules[] = {
+ 	/* xprop(1):
+ 	 *	WM_CLASS(STRING) = instance, class
+ 	 *	WM_NAME(STRING) = title
+ 	 */
+-	/* class      instance    title       tags mask     isfloating   monitor */
+-	{ "Gimp",     NULL,       NULL,       0,            1,           -1 },
+-	{ "Firefox",  NULL,       NULL,       1 << 8,       0,           -1 },
++	/* class      instance    title       tags mask     isfloating   monitor   appicon*/
++	{ "Gimp",     NULL,       NULL,       0,            1,           -1,         NULL },
++	{ "Firefox",  NULL,       NULL,       1 << 8,       0,           -1,         "󰈹"  },
+ };
+ 
+ /* layout(s) */
+diff --git a/dwm.c b/dwm.c
+index 1443802..4fe7a6d 100644
+--- a/dwm.c
++++ b/dwm.c
 @@ -85,6 +85,7 @@ typedef struct Monitor Monitor;
  typedef struct Client Client;
  struct Client {
@@ -24,7 +68,17 @@
  } Rule;
  
  /* function declarations */
-@@ -286,7 +292,13 @@ applyrules(Client *c)
+@@ -160,6 +163,9 @@ static void destroynotify(XEvent *e);
+ static void detach(Client *c);
+ static void detachstack(Client *c);
+ static Monitor *dirtomon(int dir);
++static void remove_outer_separators(char **str);
++static void appiconsappend(char **str, const char *appicon, size_t new_size);
++static void applyappicon(char *tag_icons[], int *icons_per_tag, const Client *c);
+ static void drawbar(Monitor *m);
+ static void drawbars(void);
+ static void enternotify(XEvent *e);
+@@ -283,7 +289,13 @@ applyrules(Client *c)
  	Monitor *m;
  	XClassHint ch = { NULL, NULL };
  
@@ -38,7 +92,7 @@
  	c->isfloating = 0;
  	c->tags = 0;
  	XGetClassHint(dpy, c->win, &ch);
-@@ -299,6 +311,8 @@ applyrules(Client *c)
+@@ -296,6 +308,8 @@ applyrules(Client *c)
  		&& (!r->class || strstr(class, r->class))
  		&& (!r->instance || strstr(instance, r->instance)))
  		{
@@ -47,7 +101,7 @@
  			c->isfloating = r->isfloating;
  			c->tags |= r->tags;
  			for (m = mons; m && m->num != r->monitor; m = m->next);
-@@ -436,7 +450,7 @@ buttonpress(XEvent *e)
+@@ -433,7 +447,7 @@ buttonpress(XEvent *e)
  	if (ev->window == selmon->barwin) {
  		i = x = 0;
  		do
@@ -56,7 +110,7 @@
  		while (ev->x >= x && ++i < LENGTH(tags));
  		if (i < LENGTH(tags)) {
  			click = ClkTagBar;
-@@ -511,6 +525,14 @@ cleanupmon(Monitor *mon)
+@@ -508,6 +522,14 @@ cleanupmon(Monitor *mon)
  	}
  	XUnmapWindow(dpy, mon->barwin);
  	XDestroyWindow(dpy, mon->barwin);
@@ -71,7 +125,7 @@
  	free(mon);
  }
  
-@@ -646,6 +668,13 @@ createmon(void)
+@@ -643,6 +665,13 @@ createmon(void)
  	m->lt[0] = &layouts[0];
  	m->lt[1] = &layouts[1 % LENGTH(layouts)];
  	strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
@@ -85,7 +139,7 @@
  	return m;
  }
  
-@@ -697,6 +726,96 @@ dirtomon(int dir)
+@@ -694,6 +723,96 @@ dirtomon(int dir)
  	return m;
  }
  
@@ -182,7 +236,7 @@
  void
  drawbar(Monitor *m)
  {
-@@ -716,22 +835,35 @@ drawbar(Monitor *m)
+@@ -713,22 +832,35 @@ drawbar(Monitor *m)
  		drw_text(drw, m->ww - tw, 0, tw, bh, 0, stext, 0);
  	}
  
@@ -221,3 +275,6 @@
  	w = TEXTW(m->ltsymbol);
  	drw_setscheme(drw, scheme[SchemeNorm]);
  	x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
+-- 
+2.49.0
+
